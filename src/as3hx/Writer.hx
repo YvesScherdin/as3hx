@@ -2203,9 +2203,9 @@ class Writer
                         case "int": writeCastToInt(e1);
                         case "Number": writeCastToFloat(e1);
                         case "Array":
-                            write("try cast(");
+                            write("cast(");
                             writeExpr(e1);
-                            write(", Array</*AS3HX WARNING no type*/>) catch(e:Dynamic) null");
+                            write(")");
                             addWarning("as array", true);
                         case "Class":
                             addWarning("as Class",true);
@@ -2213,30 +2213,30 @@ class Writer
                             writeExpr(e1);
                             write(")");
                         default:
-                            write("try cast(");
+                            write("cast(");
                             writeExpr(e1);
                             write(", ");
                             switch(e2) {
                                 case EIdent(s): writeModifiedIdent(s);
                                 default: writeExpr(e2);
                             }
-                            write(") catch(e:Dynamic) null");
+                            write(")");
                     }
                 case EField(_):
-                    write("try cast(");
+                    write("cast(");
                     writeExpr(e1);
                     write(", ");
                     switch(e2) {
                         case EIdent(s): writeModifiedIdent(s);
                         default: writeExpr(e2);
                     }
-                    write(") catch(e:Dynamic) null");
+                    write(")");
                 case EVector(_):
-                    write("try cast(");
+                    write("cast(");
                     writeExpr(e1);
                     write(", ");
                     writeExpr(e2);
-                    write(") catch(e:Dynamic) null");
+                    write(")");
                 default: throw "Unexpected " + Std.string(e2);
             }
         } else if(op == "is") {
