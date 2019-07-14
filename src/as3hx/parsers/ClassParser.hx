@@ -25,6 +25,10 @@ class ClassParser {
         var fields = new Array();
         var impl = [], extend = null, inits = [];
         var condVars:Array<String> = [];
+		var isStaticOnly = true;
+		var hasConstructor = false;
+		var constructorInsertionBefore = null;
+		
         while( true ) {
             if( ParserUtils.opt(tokenizer, TId("implements")) ) {
                 impl.push(parseType());
@@ -109,6 +113,9 @@ class ClassParser {
                         break;
                     case "var":
                         do {
+							if (isStaticOnly && Lambda.indexOf(kwds, "static") == -1)
+								isStaticOnly = false;
+							
                             fields.push(parseClassVar(kwds, meta, condVars.copy()));
                             meta = [];
                         } while( ParserUtils.opt(tokenizer, TComma) );
@@ -118,7 +125,35 @@ class ClassParser {
                         }
                         break;
                     case "function":
-                        fields.push(parseClassFun(kwds, meta, condVars.copy(), isInterface));
+						
+						var funcField = parseClassFun(kwds, meta, condVars.copy(), isInterface);
+						
+						if (Lambda.indexOf(kwds, "static") == -1)
+						{
+							if(isStaticOnly)
+								isStaticOnly = false;
+							
+							if (!hasConstructor)
+							{
+								if (funcField.name == cname)
+								{
+									hasConstructor = true;
+								}
+								else if (constructorInsertionBefore == null)
+								{
+									if (	Lambda.indexOf(kwds, "get") == -1
+										 && Lambda.indexOf(kwds, "set") == -1
+										 && funcField.name.indexOf("set") != 0
+										 && funcField.name.indexOf("get") != 0 )
+									{
+										constructorInsertionBefore = funcField.name;
+									}
+								}
+							}
+							
+						}
+						
+                        fields.push(funcField);
                         meta = [];
                         if (condVars.length != 0 && !inCondBlock) {
                             return;
@@ -242,17 +277,24 @@ class ClassParser {
                 throw "Assert error: " + m;
             }
         }
+		
+		if (isStaticOnly && fields.length == 0)
+			isStaticOnly = false;
+		
         Debug.closeDebug("parseClass(" + cname+") finished", tokenizer.line);
         return {
             meta : classMeta,
             kwds : kwds,
             imports : imports,
             isInterface : isInterface,
+            isStaticOnly : isStaticOnly,
+			hasConstructor : hasConstructor,
             name : cname,
             fields : fields,
             implement : impl,
             extend : extend,
-            inits : inits
+            inits : inits,
+			constructorInsertionBefore : constructorInsertionBefore
         };
     }
 

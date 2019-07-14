@@ -92,6 +92,9 @@ typedef ClassDef = {
     var implement : Array<T>;
     var extend : Null<T>;
     var inits : Array<Expr>;
+	var isStaticOnly : Bool;
+	var hasConstructor : Bool;
+	@:optional var constructorInsertionBefore : String;
 }
 
 typedef FunctionDef = {

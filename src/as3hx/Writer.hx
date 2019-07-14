@@ -113,11 +113,13 @@ class Writer
         if(!isBlock) {
             return s;
         }
+		
         var r = new EReg("^(" + cfg.indentChars + ")+", "mg");
         return StringTools.ltrim(r.replace(s,indent()));
     }
 
     function formatBlockBody(expr:Expr):Array<Expr> {
+		
         var result = [];
         var f:Expr->Void = null;
         f = function(e) {
@@ -458,42 +460,47 @@ class Writer
 
     function writeFields(c : ClassDef)
     {
+		var needsConstructor:Bool = !c.isInterface && !c.hasConstructor && !c.isStaticOnly;
+		var insertionPointKnown:Bool = needsConstructor && c.constructorInsertionBefore != null;
+		var constructorInsertion:String = c.constructorInsertionBefore;
+		
         for (field in c.fields)
+		{
+			if (insertionPointKnown && field.name == constructorInsertion)
+			{
+				writeMissingConstructor(c);
+				needsConstructor = false;
+			}
+			
             writeField(field, c);
-        if(c.isInterface)
-            return;
-
-        if(!Lambda.exists(c.fields,
-            function(field:ClassField) {
-                switch(field.kind) {
-                    case FFun( f ):
-                        if (field.name == c.name)
-                            return true;
-                    default:
-                }
-                return false;
-            }
-        ))
-        {
-            addWarning("Required constructor was added for member var initialization");
-            writeNL();
-            writeNL();
-            writeIndent();
-            if (isInternal(c.kwds)) {
-                writeAllow();
-                write("private ");
-            }
-            else {
-                write("public ");
-            }
-            writeConstructor({
-                args : [],
-                varArgs : null,
-                ret : null,
-                expr : EBlock(((null != c.extend) ? [ENL(ECall(EIdent("super"),[]))] : []))
-            }, c.extend != null);
-        }
+		}
+		
+		if (needsConstructor && !insertionPointKnown)
+		{
+			writeMissingConstructor(c);
+		}
     }
+	
+	function writeMissingConstructor(c : ClassDef)
+	{
+		addWarning("Required constructor was added for member var initialization");
+		writeNL();
+		writeNL();
+		writeIndent();
+		if (isInternal(c.kwds)) {
+			writeAllow();
+			write("private ");
+		}
+		else {
+			write("public ");
+		}
+		writeConstructor({
+			args : [],
+			varArgs : null,
+			ret : null,
+			expr : EBlock(((null != c.extend) ? [ENL(ECall(EIdent("super"),[]))] : []))
+		}, c.extend != null);
+	}
 
     function writeField(field : ClassField, c : ClassDef)
     {
@@ -532,25 +539,7 @@ class Writer
                 write("@:final ");
             if((isConstructor && isInternal(c.kwds)) || (!isInterface && isInternal(field.kwds)))
                 writeAllow();
-            if(isOverride(field.kwds))
-                write((isFlashNative && (isGet || isSet)) ? "" : "override ");
-
-            //coner-case, constructor of internal AS3 class is set to private in
-            //Haxe with a meta allowing access from same package
-            if(isConstructor && isInternal(c.kwds)) {
-                write("private ");
-            }
-            else if(isPublic(field.kwds)) {
-                if(!(isGet && cfg.forcePrivateGetter) //check if forced private getter
-                    && !(isSet && cfg.forcePrivateSetter)) //check if forced private setter
-                    write("public ");
-                else if(!isInterface) {
-                    write("private ");
-                }
-            }
-            else if(!isInterface) {
-                write("private ");
-            }
+			
             //check wheter the field is an AS3 constants, which can be inlined in Haxe
             //the field must be either a static constant or a private constant.
             //If it is a non-static public constant it can't be inlined as Haxe can only inline
@@ -573,6 +562,27 @@ class Writer
                     }
                 }
             }
+			
+            if(isOverride(field.kwds))
+                write((isFlashNative && (isGet || isSet)) ? "" : "override ");
+			
+            //coner-case, constructor of internal AS3 class is set to private in
+            //Haxe with a meta allowing access from same package
+            if(isConstructor && isInternal(c.kwds)) {
+                write("private ");
+            }
+            else if(isPublic(field.kwds)) {
+                if(!(isGet && cfg.forcePrivateGetter) //check if forced private getter
+                    && !(isSet && cfg.forcePrivateSetter)) //check if forced private setter
+                    write("public ");
+                else if(!isInterface) {
+                    write("private ");
+                }
+            }
+            else if(!isInterface) {
+                write("private ");
+            }
+			
         }
         switch(field.kind) {
             case FVar(t, val):
@@ -2533,6 +2543,7 @@ class Writer
     }
 
     function writeECommented(s:String, isBlock:Bool, isTail:Bool, e:Expr, ?delimiter:String):BlockEnd {
+		
         var writeDelimiter = function() {
             if(delimiter == null) return;
             lineIsDirty = false;
@@ -3393,7 +3404,9 @@ class Writer
             extend : null,
             implement : [],
             fields:[funcAsClassField],
-            inits : []
+            inits : [],
+			isStaticOnly : true,
+			hasConstructor : false
         };
     }
 
