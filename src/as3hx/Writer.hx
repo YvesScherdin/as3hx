@@ -3698,6 +3698,10 @@ class Writer
 
     public static function properCaseA(path:Array<String>, hasClassName:Bool):Array<String> {
         var result = [];
+		
+		if (path.length > 0 && path[0] == "flash")
+			path[0] = "openfl";
+		
         for(i in 0...path.length) {
             if(hasClassName && i == path.length - 1)
                 result[i] = removeUnderscores(path[i]);
